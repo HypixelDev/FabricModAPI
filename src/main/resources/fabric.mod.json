@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "hypixel-mod-api",
+  "version": "${version}",
+  "name": "Hypixel Mod API",
+  "description": "",
+  "authors": [],
+  "contact": {
+    "repo": "https://github.com/HypixelDev/FabricModAPI"
+  },
+  "license": "MIT",
+  "icon": "assets/hypixel-mod-api/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "net.hypixel.modapi.fabric.FabricModAPI"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
