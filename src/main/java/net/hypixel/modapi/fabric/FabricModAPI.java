@@ -5,6 +5,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.hypixel.modapi.HypixelModAPI;
+import net.hypixel.modapi.fabric.event.HypixelModAPICallback;
 import net.hypixel.modapi.fabric.payload.ClientboundHypixelPayload;
 import net.hypixel.modapi.fabric.payload.ServerboundHypixelPayload;
 import net.minecraft.network.PacketByteBuf;
@@ -50,7 +51,17 @@ public class FabricModAPI implements ClientModInitializer {
                 return;
             }
 
-            HypixelModAPI.getInstance().handle(payload.getPacket());
+            try {
+                HypixelModAPI.getInstance().handle(payload.getPacket());
+            } catch (Exception e) {
+                LOGGER.error("An error occurred while handling packet {}", identifier, e);
+            }
+
+            try {
+                HypixelModAPICallback.EVENT.invoker().onPacketReceived(payload.getPacket());
+            } catch (Exception e) {
+                LOGGER.error("An error occurred while handling packet {}", identifier, e);
+            }
         });
     }
 
