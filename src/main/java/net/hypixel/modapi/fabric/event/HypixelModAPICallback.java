@@ -11,10 +11,10 @@ public interface HypixelModAPICallback {
 
     Event<HypixelModAPICallback> EVENT = EventFactory.createArrayBacked(HypixelModAPICallback.class, callbacks -> packet -> {
         for (HypixelModAPICallback callback : callbacks) {
-            callback.onPacket(packet);
+            callback.onPacketReceived(packet);
         }
     });
 
-    void onPacket(ClientboundHypixelPacket packet);
+    void onPacketReceived(ClientboundHypixelPacket packet);
 
 }

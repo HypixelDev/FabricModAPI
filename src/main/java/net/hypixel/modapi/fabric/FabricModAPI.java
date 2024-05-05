@@ -58,7 +58,7 @@ public class FabricModAPI implements ClientModInitializer {
             }
 
             try {
-                HypixelModAPICallback.EVENT.invoker().onPacket(payload.getPacket());
+                HypixelModAPICallback.EVENT.invoker().onPacketReceived(payload.getPacket());
             } catch (Exception e) {
                 LOGGER.error("An error occurred while handling packet {}", identifier, e);
             }
