@@ -8,6 +8,7 @@ import net.hypixel.modapi.HypixelModAPI;
 import net.hypixel.modapi.fabric.event.HypixelModAPICallback;
 import net.hypixel.modapi.fabric.payload.ClientboundHypixelPayload;
 import net.hypixel.modapi.fabric.payload.ServerboundHypixelPayload;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.packet.CustomPayload;
@@ -31,6 +32,7 @@ public class FabricModAPI implements ClientModInitializer {
         for (String identifier : HypixelModAPI.getInstance().getRegistry().getClientboundIdentifiers()) {
             try {
                 registerClientbound(identifier);
+                LOGGER.info("Registered clientbound packet with identifier '{}'", identifier);
             } catch (Exception e) {
                 LOGGER.error("Failed to register clientbound packet with identifier '{}'", identifier, e);
             }
@@ -39,6 +41,7 @@ public class FabricModAPI implements ClientModInitializer {
         for (String identifier : HypixelModAPI.getInstance().getRegistry().getServerboundIdentifiers()) {
             try {
                 registerServerbound(identifier);
+                LOGGER.info("Registered serverbound packet with identifier '{}'", identifier);
             } catch (Exception e) {
                 LOGGER.error("Failed to register serverbound packet with identifier '{}'", identifier, e);
             }
@@ -47,8 +50,14 @@ public class FabricModAPI implements ClientModInitializer {
 
     private static void registerPacketSender() {
         HypixelModAPI.getInstance().setPacketSender((packet) -> {
+            if (MinecraftClient.getInstance().getNetworkHandler() == null) {
+                // The client is not connected to a server, so we can't send the packet
+                return false;
+            }
+
             ServerboundHypixelPayload payload = new ServerboundHypixelPayload(packet);
             ClientPlayNetworking.send(payload);
+            return true;
         });
     }
 
