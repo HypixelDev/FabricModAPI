@@ -5,13 +5,14 @@ import net.hypixel.modapi.serializer.PacketSerializer;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.packet.CustomPayload;
+import net.minecraft.util.Identifier;
 
 public class ServerboundHypixelPayload implements CustomPayload {
     private final Id<ServerboundHypixelPayload> id;
     private final HypixelPacket packet;
 
     public ServerboundHypixelPayload(HypixelPacket packet) {
-        this.id = CustomPayload.id(packet.getIdentifier());
+        this.id = new CustomPayload.Id<>(Identifier.of(packet.getIdentifier()));
         this.packet = packet;
     }
 
