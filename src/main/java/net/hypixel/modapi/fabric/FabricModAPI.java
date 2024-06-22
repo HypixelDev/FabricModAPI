@@ -2,6 +2,7 @@ package net.hypixel.modapi.fabric;
 
 import com.mojang.logging.LogUtils;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.networking.v1.ClientConfigurationNetworking;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.hypixel.modapi.HypixelModAPI;
@@ -50,14 +51,20 @@ public class FabricModAPI implements ClientModInitializer {
 
     private static void registerPacketSender() {
         HypixelModAPI.getInstance().setPacketSender((packet) -> {
-            if (MinecraftClient.getInstance().getNetworkHandler() == null) {
-                // The client is not connected to a server, so we can't send the packet
-                return false;
+            ServerboundHypixelPayload hypixelPayload = new ServerboundHypixelPayload(packet);
+
+            if (MinecraftClient.getInstance().getNetworkHandler() != null) {
+                ClientPlayNetworking.send(hypixelPayload);
+                return true;
             }
 
-            ServerboundHypixelPayload payload = new ServerboundHypixelPayload(packet);
-            ClientPlayNetworking.send(payload);
-            return true;
+            try {
+                ClientConfigurationNetworking.send(hypixelPayload);
+                return true;
+            } catch (IllegalStateException ignored) {
+                LOGGER.warn("Failed to send a packet as the client is not connected to a server '{}'", packet);
+                return false;
+            }
         });
     }
 
@@ -68,27 +75,37 @@ public class FabricModAPI implements ClientModInitializer {
             PayloadTypeRegistry.playS2C().register(clientboundId, codec);
             PayloadTypeRegistry.configurationS2C().register(clientboundId, codec);
 
-            // Also register the global receiver for handling incoming packets
+            // Also register the global receiver for handling incoming packets during PLAY and CONFIGURATION
             ClientPlayNetworking.registerGlobalReceiver(clientboundId, (payload, context) -> {
-                if (!payload.isSuccess()) {
-                    LOGGER.warn("Received an error response for packet {}: {}", identifier, payload.getErrorReason());
-                    return;
-                }
+                LOGGER.debug("Received packet with identifier '{}', during PLAY", identifier);
+                handleIncomingPayload(identifier, payload);
 
-                try {
-                    HypixelModAPI.getInstance().handle(payload.getPacket());
-                } catch (Exception e) {
-                    LOGGER.error("An error occurred while handling packet {}", identifier, e);
-                }
-
-                try {
-                    HypixelModAPICallback.EVENT.invoker().onPacketReceived(payload.getPacket());
-                } catch (Exception e) {
-                    LOGGER.error("An error occurred while handling packet {}", identifier, e);
-                }
+            });
+            ClientConfigurationNetworking.registerGlobalReceiver(clientboundId, (payload, context) -> {
+                LOGGER.debug("Received packet with identifier '{}', during CONFIGURATION", identifier);
+                handleIncomingPayload(identifier, payload);
             });
         } catch (IllegalArgumentException ignored) {
             // Ignored as this is fired when we reload the registrations and the packet is already registered
+        }
+    }
+
+    private static void handleIncomingPayload(String identifier, ClientboundHypixelPayload payload) {
+        if (!payload.isSuccess()) {
+            LOGGER.warn("Received an error response for packet {}: {}", identifier, payload.getErrorReason());
+            return;
+        }
+
+        try {
+            HypixelModAPI.getInstance().handle(payload.getPacket());
+        } catch (Exception e) {
+            LOGGER.error("An error occurred while handling packet {}", identifier, e);
+        }
+
+        try {
+            HypixelModAPICallback.EVENT.invoker().onPacketReceived(payload.getPacket());
+        } catch (Exception e) {
+            LOGGER.error("An error occurred while handling packet {}", identifier, e);
         }
     }
 
