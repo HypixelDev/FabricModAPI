@@ -111,7 +111,6 @@ public class FabricModAPI implements ClientModInitializer {
             }
 
             try {
-                System.out.println("INVOKING ON ERROR");
                 HypixelModAPIErrorCallback.EVENT.invoker().onError(identifier, payload.getErrorReason());
             } catch (Exception e) {
                 LOGGER.error("An error occurred while handling error response for packet {}", identifier, e);
