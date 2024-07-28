@@ -5,7 +5,7 @@ import net.fabricmc.fabric.api.event.EventFactory;
 import net.hypixel.modapi.error.ErrorReason;
 
 /**
- * Callback for when a Hypixel Mod API packet is received.
+ * Callback for when a Hypixel Mod API error reason is received.
  */
 public interface HypixelModAPIErrorCallback {
 
