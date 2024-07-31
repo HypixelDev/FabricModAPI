@@ -7,12 +7,10 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.loader.api.FabricLoader;
 import net.hypixel.modapi.HypixelModAPI;
-import net.hypixel.modapi.error.ErrorReason;
 import net.hypixel.modapi.fabric.event.HypixelModAPICallback;
 import net.hypixel.modapi.fabric.event.HypixelModAPIErrorCallback;
 import net.hypixel.modapi.fabric.payload.ClientboundHypixelPayload;
 import net.hypixel.modapi.fabric.payload.ServerboundHypixelPayload;
-import net.hypixel.modapi.handler.ClientboundPacketHandler;
 import net.hypixel.modapi.packet.impl.clientbound.event.ClientboundLocationPacket;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.network.PacketByteBuf;
@@ -146,17 +144,8 @@ public class FabricModAPI implements ClientModInitializer {
         // Register events
         HypixelModAPI.getInstance().subscribeToEventPacket(ClientboundLocationPacket.class);
 
-        HypixelModAPI.getInstance().registerHandler(ClientboundLocationPacket.class, new ClientboundPacketHandler<>() {
-            @Override
-            public void handle(ClientboundLocationPacket packet) {
-                LOGGER.info("Received location packet {}", packet);
-            }
-
-            @Override
-            public void onError(ErrorReason reason) {
-                LOGGER.error("Received error response in location handler {}", reason);
-            }
-        });
+        HypixelModAPI.getInstance().registerHandler(ClientboundLocationPacket.class, packet -> LOGGER.info("Received location packet {}", packet))
+                .onError(error -> LOGGER.error("Received error response for location packet: {}", error));
 
         HypixelModAPICallback.EVENT.register(packet -> LOGGER.info("Received packet {}", packet));
         HypixelModAPIErrorCallback.EVENT.register((identifier, error) -> LOGGER.error("Received error response for packet {}: {}", identifier, error));
