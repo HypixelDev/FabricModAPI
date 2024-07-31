@@ -144,7 +144,7 @@ public class FabricModAPI implements ClientModInitializer {
         // Register events
         HypixelModAPI.getInstance().subscribeToEventPacket(ClientboundLocationPacket.class);
 
-        HypixelModAPI.getInstance().registerHandler(ClientboundLocationPacket.class, packet -> LOGGER.info("Received location packet {}", packet))
+        HypixelModAPI.getInstance().createHandler(ClientboundLocationPacket.class, packet -> LOGGER.info("Received location packet {}", packet))
                 .onError(error -> LOGGER.error("Received error response for location packet: {}", error));
 
         HypixelModAPICallback.EVENT.register(packet -> LOGGER.info("Received packet {}", packet));
