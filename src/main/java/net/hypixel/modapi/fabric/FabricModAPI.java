@@ -5,10 +5,13 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientConfigurationNetworking;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.loader.api.FabricLoader;
 import net.hypixel.modapi.HypixelModAPI;
 import net.hypixel.modapi.fabric.event.HypixelModAPICallback;
+import net.hypixel.modapi.fabric.event.HypixelModAPIErrorCallback;
 import net.hypixel.modapi.fabric.payload.ClientboundHypixelPayload;
 import net.hypixel.modapi.fabric.payload.ServerboundHypixelPayload;
+import net.hypixel.modapi.packet.impl.clientbound.event.ClientboundLocationPacket;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
@@ -17,11 +20,17 @@ import org.slf4j.Logger;
 
 public class FabricModAPI implements ClientModInitializer {
     private static final Logger LOGGER = LogUtils.getLogger();
+    private static final boolean DEBUG_MODE = FabricLoader.getInstance().isDevelopmentEnvironment() || Boolean.getBoolean("net.hypixel.modapi.debug");
 
     @Override
     public void onInitializeClient() {
         reloadRegistrations();
         registerPacketSender();
+
+        if (DEBUG_MODE) {
+            LOGGER.info("Debug mode is enabled!");
+            registerDebug();
+        }
     }
 
     /**
@@ -93,6 +102,17 @@ public class FabricModAPI implements ClientModInitializer {
     private static void handleIncomingPayload(String identifier, ClientboundHypixelPayload payload) {
         if (!payload.isSuccess()) {
             LOGGER.warn("Received an error response for packet {}: {}", identifier, payload.getErrorReason());
+            try {
+                HypixelModAPI.getInstance().handleError(identifier, payload.getErrorReason());
+            } catch (Exception e) {
+                LOGGER.error("An error occurred while handling error response for packet {}", identifier, e);
+            }
+
+            try {
+                HypixelModAPIErrorCallback.EVENT.invoker().onError(identifier, payload.getErrorReason());
+            } catch (Exception e) {
+                LOGGER.error("An error occurred while handling error response for packet {}", identifier, e);
+            }
             return;
         }
 
@@ -118,5 +138,16 @@ public class FabricModAPI implements ClientModInitializer {
         } catch (IllegalArgumentException ignored) {
             // Ignored as this is fired when we reload the registrations and the packet is already registered
         }
+    }
+
+    private static void registerDebug() {
+        // Register events
+        HypixelModAPI.getInstance().subscribeToEventPacket(ClientboundLocationPacket.class);
+
+        HypixelModAPI.getInstance().createHandler(ClientboundLocationPacket.class, packet -> LOGGER.info("Received location packet {}", packet))
+                .onError(error -> LOGGER.error("Received error response for location packet: {}", error));
+
+        HypixelModAPICallback.EVENT.register(packet -> LOGGER.info("Received packet {}", packet));
+        HypixelModAPIErrorCallback.EVENT.register((identifier, error) -> LOGGER.error("Received error response for packet {}: {}", identifier, error));
     }
 }
