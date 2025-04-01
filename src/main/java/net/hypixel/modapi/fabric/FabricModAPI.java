@@ -16,6 +16,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.packet.CustomPayload;
+import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 
 public class FabricModAPI implements ClientModInitializer {
@@ -79,7 +80,7 @@ public class FabricModAPI implements ClientModInitializer {
 
     private static void registerClientbound(String identifier) {
         try {
-            CustomPayload.Id<ClientboundHypixelPayload> clientboundId = CustomPayload.id(identifier);
+            CustomPayload.Id<ClientboundHypixelPayload> clientboundId = new CustomPayload.Id<>(Identifier.of(identifier));
             PacketCodec<PacketByteBuf, ClientboundHypixelPayload> codec = ClientboundHypixelPayload.buildCodec(clientboundId);
             PayloadTypeRegistry.playS2C().register(clientboundId, codec);
             PayloadTypeRegistry.configurationS2C().register(clientboundId, codec);
@@ -131,7 +132,7 @@ public class FabricModAPI implements ClientModInitializer {
 
     private static void registerServerbound(String identifier) {
         try {
-            CustomPayload.Id<ServerboundHypixelPayload> serverboundId = CustomPayload.id(identifier);
+            CustomPayload.Id<ServerboundHypixelPayload> serverboundId = new CustomPayload.Id<>(Identifier.of(identifier));
             PacketCodec<PacketByteBuf, ServerboundHypixelPayload> codec = ServerboundHypixelPayload.buildCodec(serverboundId);
             PayloadTypeRegistry.playC2S().register(serverboundId, codec);
             PayloadTypeRegistry.configurationC2S().register(serverboundId, codec);
