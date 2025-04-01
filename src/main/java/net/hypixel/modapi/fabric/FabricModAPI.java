@@ -3,35 +3,78 @@ package net.hypixel.modapi.fabric;
 import com.mojang.logging.LogUtils;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientConfigurationNetworking;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.loader.api.FabricLoader;
 import net.hypixel.modapi.HypixelModAPI;
+import net.hypixel.modapi.HypixelModAPIImplementation;
 import net.hypixel.modapi.fabric.event.HypixelModAPICallback;
 import net.hypixel.modapi.fabric.event.HypixelModAPIErrorCallback;
 import net.hypixel.modapi.fabric.payload.ClientboundHypixelPayload;
 import net.hypixel.modapi.fabric.payload.ServerboundHypixelPayload;
+import net.hypixel.modapi.packet.HypixelPacket;
+import net.hypixel.modapi.packet.impl.clientbound.ClientboundHelloPacket;
 import net.hypixel.modapi.packet.impl.clientbound.event.ClientboundLocationPacket;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.network.codec.PacketCodec;
 import net.minecraft.network.packet.CustomPayload;
+import net.minecraft.test.GameTest;
 import net.minecraft.util.Identifier;
+import org.jetbrains.annotations.ApiStatus;
 import org.slf4j.Logger;
 
-public class FabricModAPI implements ClientModInitializer {
+public class FabricModAPI implements ClientModInitializer, HypixelModAPIImplementation {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final boolean DEBUG_MODE = FabricLoader.getInstance().isDevelopmentEnvironment() || Boolean.getBoolean("net.hypixel.modapi.debug");
 
+    private boolean onHypixel = false;
+
+    @GameTest
     @Override
     public void onInitializeClient() {
-        reloadRegistrations();
-        registerPacketSender();
+        HypixelModAPI.getInstance().setModImplementation(this);
+    }
+
+    @Override
+    public void onInit() {
+        HypixelModAPI.getInstance().createHandler(ClientboundHelloPacket.class, packet -> onHypixel = true);
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> onHypixel = false);
 
         if (DEBUG_MODE) {
             LOGGER.info("Debug mode is enabled!");
             registerDebug();
         }
+
+        reloadRegistrations();
+    }
+
+    @Override
+    public boolean sendPacket(HypixelPacket packet) {
+        if (!isConnectedToHypixel()) {
+            return false;
+        }
+
+        ServerboundHypixelPayload hypixelPayload = new ServerboundHypixelPayload(packet);
+
+        if (MinecraftClient.getInstance().getNetworkHandler() != null) {
+            ClientPlayNetworking.send(hypixelPayload);
+            return true;
+        }
+
+        try {
+            ClientConfigurationNetworking.send(hypixelPayload);
+            return true;
+        } catch (IllegalStateException ignored) {
+            LOGGER.warn("Failed to send a packet as the client is not connected to a server '{}'", packet);
+            return false;
+        }
+    }
+
+    @Override
+    public boolean isConnectedToHypixel() {
+        return onHypixel;
     }
 
     /**
@@ -39,6 +82,7 @@ public class FabricModAPI implements ClientModInitializer {
      * <p>
      * This method is available for internal use by Hypixel to add new packets externally, and is not intended for use by other developers.
      */
+    @ApiStatus.Internal
     public static void reloadRegistrations() {
         for (String identifier : HypixelModAPI.getInstance().getRegistry().getClientboundIdentifiers()) {
             try {
@@ -57,25 +101,6 @@ public class FabricModAPI implements ClientModInitializer {
                 LOGGER.error("Failed to register serverbound packet with identifier '{}'", identifier, e);
             }
         }
-    }
-
-    private static void registerPacketSender() {
-        HypixelModAPI.getInstance().setPacketSender((packet) -> {
-            ServerboundHypixelPayload hypixelPayload = new ServerboundHypixelPayload(packet);
-
-            if (MinecraftClient.getInstance().getNetworkHandler() != null) {
-                ClientPlayNetworking.send(hypixelPayload);
-                return true;
-            }
-
-            try {
-                ClientConfigurationNetworking.send(hypixelPayload);
-                return true;
-            } catch (IllegalStateException ignored) {
-                LOGGER.warn("Failed to send a packet as the client is not connected to a server '{}'", packet);
-                return false;
-            }
-        });
     }
 
     private static void registerClientbound(String identifier) {
