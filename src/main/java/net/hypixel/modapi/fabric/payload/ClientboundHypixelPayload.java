@@ -1,21 +1,22 @@
 package net.hypixel.modapi.fabric.payload;
 
+import io.netty.buffer.ByteBuf;
 import net.hypixel.modapi.HypixelModAPI;
 import net.hypixel.modapi.error.ErrorReason;
 import net.hypixel.modapi.packet.ClientboundHypixelPacket;
 import net.hypixel.modapi.serializer.PacketSerializer;
-import net.minecraft.network.PacketByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.packet.CustomPayload;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import org.jspecify.annotations.NonNull;
 
-public class ClientboundHypixelPayload implements CustomPayload {
-    private final Id<ClientboundHypixelPayload> id;
+public class ClientboundHypixelPayload implements CustomPacketPayload {
+    private final Type<ClientboundHypixelPayload> type;
 
     private ClientboundHypixelPacket packet;
     private ErrorReason errorReason;
 
-    private ClientboundHypixelPayload(Id<ClientboundHypixelPayload> id, PacketByteBuf buf) {
-        this.id = id;
+    private ClientboundHypixelPayload(Type<ClientboundHypixelPayload> type, ByteBuf buf) {
+        this.type = type;
 
         PacketSerializer serializer = new PacketSerializer(buf);
         boolean success = serializer.readBoolean();
@@ -24,12 +25,12 @@ public class ClientboundHypixelPayload implements CustomPayload {
             return;
         }
 
-        this.packet = HypixelModAPI.getInstance().getRegistry().createClientboundPacket(id.id().toString(), serializer);
+        this.packet = HypixelModAPI.getInstance().getRegistry().createClientboundPacket(type.id().toString(), serializer);
     }
 
     @Override
-    public Id<? extends CustomPayload> getId() {
-        return id;
+    public @NonNull Type<? extends CustomPacketPayload> type() {
+        return type;
     }
 
     public boolean isSuccess() {
@@ -44,8 +45,8 @@ public class ClientboundHypixelPayload implements CustomPayload {
         return errorReason;
     }
 
-    public static PacketCodec<PacketByteBuf, ClientboundHypixelPayload> buildCodec(Id<ClientboundHypixelPayload> id) {
-        return CustomPayload.codecOf((value, buf) -> {
+    public static StreamCodec<ByteBuf, ClientboundHypixelPayload> buildCodec(Type<ClientboundHypixelPayload> id) {
+        return CustomPacketPayload.codec((value, buf) -> {
             throw new UnsupportedOperationException("Cannot write ClientboundHypixelPayload");
         }, buf -> new ClientboundHypixelPayload(id, buf));
     }
