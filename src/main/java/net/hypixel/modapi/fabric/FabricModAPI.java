@@ -1,10 +1,12 @@
 package net.hypixel.modapi.fabric;
 
 import com.mojang.logging.LogUtils;
+import io.netty.buffer.ByteBuf;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientConfigurationNetworking;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.gametest.v1.GameTest;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.loader.api.FabricLoader;
 import net.hypixel.modapi.HypixelModAPI;
@@ -16,12 +18,10 @@ import net.hypixel.modapi.fabric.payload.ServerboundHypixelPayload;
 import net.hypixel.modapi.packet.HypixelPacket;
 import net.hypixel.modapi.packet.impl.clientbound.ClientboundHelloPacket;
 import net.hypixel.modapi.packet.impl.clientbound.event.ClientboundLocationPacket;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.network.PacketByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.packet.CustomPayload;
-import net.minecraft.test.GameTest;
-import net.minecraft.util.Identifier;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.Identifier;
 import org.jetbrains.annotations.ApiStatus;
 import org.slf4j.Logger;
 
@@ -58,7 +58,7 @@ public class FabricModAPI implements ClientModInitializer, HypixelModAPIImplemen
 
         ServerboundHypixelPayload hypixelPayload = new ServerboundHypixelPayload(packet);
 
-        if (MinecraftClient.getInstance().getNetworkHandler() != null) {
+        if (Minecraft.getInstance().getConnection() != null) {
             ClientPlayNetworking.send(hypixelPayload);
             return true;
         }
@@ -105,10 +105,12 @@ public class FabricModAPI implements ClientModInitializer, HypixelModAPIImplemen
 
     private static void registerClientbound(String identifier) {
         try {
-            CustomPayload.Id<ClientboundHypixelPayload> clientboundId = new CustomPayload.Id<>(Identifier.of(identifier));
-            PacketCodec<PacketByteBuf, ClientboundHypixelPayload> codec = ClientboundHypixelPayload.buildCodec(clientboundId);
-            PayloadTypeRegistry.playS2C().register(clientboundId, codec);
-            PayloadTypeRegistry.configurationS2C().register(clientboundId, codec);
+            CustomPacketPayload.Type<ClientboundHypixelPayload> clientboundId = new CustomPacketPayload.Type<>(
+                    Identifier.parse(identifier)
+            );
+            StreamCodec<ByteBuf, ClientboundHypixelPayload> codec = ClientboundHypixelPayload.buildCodec(clientboundId);
+            PayloadTypeRegistry.clientboundPlay().register(clientboundId, codec);
+            PayloadTypeRegistry.clientboundConfiguration().register(clientboundId, codec);
 
             // Also register the global receiver for handling incoming packets during PLAY and CONFIGURATION
             ClientPlayNetworking.registerGlobalReceiver(clientboundId, (payload, context) -> {
@@ -157,10 +159,12 @@ public class FabricModAPI implements ClientModInitializer, HypixelModAPIImplemen
 
     private static void registerServerbound(String identifier) {
         try {
-            CustomPayload.Id<ServerboundHypixelPayload> serverboundId = new CustomPayload.Id<>(Identifier.of(identifier));
-            PacketCodec<PacketByteBuf, ServerboundHypixelPayload> codec = ServerboundHypixelPayload.buildCodec(serverboundId);
-            PayloadTypeRegistry.playC2S().register(serverboundId, codec);
-            PayloadTypeRegistry.configurationC2S().register(serverboundId, codec);
+            CustomPacketPayload.Type<ServerboundHypixelPayload> serverboundId = new CustomPacketPayload.Type<>(
+                    Identifier.parse(identifier)
+            );
+            StreamCodec<ByteBuf, ServerboundHypixelPayload> codec = ServerboundHypixelPayload.buildCodec();
+            PayloadTypeRegistry.serverboundPlay().register(serverboundId, codec);
+            PayloadTypeRegistry.serverboundConfiguration().register(serverboundId, codec);
         } catch (IllegalArgumentException ignored) {
             // Ignored as this is fired when we reload the registrations and the packet is already registered
         }
